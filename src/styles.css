@@ -1,17 +1,46 @@
-.muted { color: #aa936b; font-size: .82rem; }
-.frontier-row { display:flex; justify-content:space-between; gap:.5rem; padding:.55rem 0; border-bottom:1px solid #51402a; }
-.frontier-row:last-child { border-bottom:0; }
-.frontier-row b { display:block; color:#f1dfb6; font-size:.82rem; }
-.frontier-row small { display:block; color:#aa936b; font-size:.68rem; text-transform:capitalize; }
-.row-actions { display:flex; gap:.25rem; align-items:center; }
-.row-actions button { padding:.35rem .42rem; font-size:.68rem; }
-.tracker { display:grid; grid-template-columns:1fr 1fr; gap:.4rem; }
-.tracker span { display:flex; justify-content:space-between; padding:.5rem; background:#272118; color:#aa936b; font-size:.72rem; }
-.tracker b { color:#f1dfb6; }
-.log li { display:flex; flex-direction:column; gap:.18rem; }
-.log li em { color:#897451; font-size:.65rem; font-style:normal; }
-.log li small { width:max-content; padding:.1rem .3rem; border:1px solid #735b38; color:#e1bd74; font-size:.58rem; text-transform:uppercase; }
-.event-battle { border-color:#9a5140 !important; color:#f0a18d !important; }
-.event-diplomacy { border-color:#4c7891 !important; color:#9ccce3 !important; }
-.event-economy { border-color:#8f7836 !important; color:#e3c477 !important; }
-@media (max-width:640px) { .frontier-row { flex-direction:column; } .row-actions { flex-wrap:wrap; } }
+
+/* Sandy parchment terrain and desert-like nation surfaces */
+.map {
+  background-color: #c8ad73;
+  background-image:
+    linear-gradient(rgba(151, 119, 62, .16), rgba(225, 198, 133, .12)),
+    repeating-linear-gradient(18deg, transparent 0 27px, rgba(106, 78, 36, .08) 28px 29px),
+    repeating-linear-gradient(107deg, transparent 0 41px, rgba(255, 235, 173, .12) 42px 43px),
+    radial-gradient(ellipse at 18% 28%, rgba(255, 227, 153, .22), transparent 24%),
+    radial-gradient(ellipse at 76% 68%, rgba(112, 79, 32, .12), transparent 28%);
+  box-shadow: inset 0 0 0 1px #ead19a, inset 0 0 80px rgba(73, 47, 19, .35), 0 4px 16px rgba(0,0,0,.4);
+}
+
+.map::after {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: radial-gradient(rgba(92, 65, 27, .18) .8px, transparent .8px);
+  background-size: 7px 7px;
+  content: "";
+  opacity: .42;
+  pointer-events: none;
+}
+
+.nation {
+  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(194, 157, 85, .22), rgba(78, 49, 18, .18)),
+    repeating-linear-gradient(24deg, transparent 0 5px, rgba(255, 230, 162, .16) 6px 7px),
+    radial-gradient(circle at 30% 25%, rgba(255, 239, 184, .28), transparent 34%);
+}
+
+.nation::after {
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed rgba(255, 225, 154, .34);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.nation span,
+.nation small {
+  position: relative;
+  z-index: 1;
+}
