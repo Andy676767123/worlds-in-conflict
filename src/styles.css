@@ -1,541 +1,76 @@
-import { useEffect, useMemo, useState } from 'react';
-
-type Mood = 'peace' | 'war' | 'alliance';
-
-type Nation = {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  color: string;
-  mood: Mood;
-  population: number;
-  treasury: number;
-  food: number;
-  industry: number;
-  science: number;
-  army: number;
-  morale: number;
-  aggression: number;
-  influence: number;
-};
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
-
-const randomBetween = (min: number, max: number) =>
-  Math.random() * (max - min) + min;
-
-const distance = (a: Nation, b: Nation) => Math.hypot(a.x - b.x, a.y - b.y);
-
-const names = [
-  'Aurelia',
-  'Northmere',
-  'Vardor',
-  'Solara',
-  'Kharon',
-  'Fjord',
-  'Tharven',
-  'Eryndor',
-  'Rivara',
-  'Helios',
-  'Borealis',
-  'Cinder',
-  'Morrow',
-  'Kael',
-  'Vesper',
-  'Lysand',
-  'Ravencrest'
-];
-
-const colors = [
-  '#5DADE2',
-  '#EC7063',
-  '#52BE80',
-  '#AF7AC5',
-  '#F5B041',
-  '#48C9B0',
-  '#7DCEA0',
-  '#F1948A',
-  '#82E0AA',
-  '#D7BDE2',
-  '#F8C471',
-  '#A3E4D7',
-  '#85C1E9',
-  '#F9E79F',
-  '#D2B4DE',
-  '#A9CCE3'
-];
-
-const createWorld = (): Nation[] =>
-  names.map((name, index) => ({
-    id: `nation-${index}`,
-    name,
-    x: randomBetween(12, 88),
-    y: randomBetween(15, 85),
-    color: colors[index % colors.length],
-    mood: index % 3 === 0 ? 'war' : index % 3 === 1 ? 'alliance' : 'peace',
-    population: randomBetween(50, 120),
-    treasury: randomBetween(45, 120),
-    food: randomBetween(50, 130),
-    industry: randomBetween(35, 110),
-    science: randomBetween(25, 115),
-    army: randomBetween(30, 90),
-    morale: randomBetween(45, 98),
-    aggression: randomBetween(30, 90),
-    influence: randomBetween(25, 85)
-  }));
-
-const getNeighbors = (nation: Nation, all: Nation[]) =>
-  all.filter((other) => other.id !== nation.id && distance(nation, other) < 25);
-
-function App() {
-  const [nations, setNations] = useState<Nation[]>(() => createWorld());
-  const [selectedId, setSelectedId] = useState('');
-  const [turn, setTurn] = useState(1);
-  const [year, setYear] = useState(1900);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const [log, setLog] = useState<string[]>([
-    'The world awakens.',
-    'New armies deploy to the frontier.',
-    'Diplomatic pressure rises across the map.'
-  ]);
-
-  const selectedNation = useMemo(
-    () => nations.find((n) => n.id === selectedId) ?? nations[0],
-    [nations, selectedId]
-  );
-
-  useEffect(() => {
-    if (!selectedId && nations.length) {
-      setSelectedId(nations[0].id);
-    }
-  }, [nations, selectedId]);
-
-  const addLog = (message: string) => {
-    setLog((prev) => [message, ...prev].slice(0, 12));
-  };
-
-  useEffect(() => {
-    if (!autoPlay) return;
-
-    const timer = window.setInterval(() => {
-      setNations((current) => {
-        const events: string[] = [];
-
-        const next = current.map((nation) => {
-          const neighbors = getNeighbors(nation, current);
-          const averageEnemyStrength =
-            neighbors.reduce((sum, other) => sum + other.army, 0) /
-            Math.max(neighbors.length, 1);
-
-          const pressure = averageEnemyStrength / Math.max(nation.army, 1);
-
-          let mood = nation.mood;
-          if (pressure > 1.05 && nation.aggression > 65) {
-            mood = 'war';
-          } else if (nation.treasury > 80 && nation.food > 65 && nation.science > 60) {
-            mood = 'alliance';
-          } else if (nation.aggression < 40 && pressure < 0.8) {
-            mood = 'peace';
-          }
-
-          const treasury = clamp(
-            nation.treasury +
-              nation.industry * 0.9 -
-              nation.army * 0.5 +
-              (mood === 'alliance' ? 4 : 0),
-            0,
-            220
-          );
-
-          const food = clamp(
-            nation.food +
-              nation.industry * 0.25 -
-              nation.population * 0.18 +
-              (mood === 'peace' ? 4 : 0),
-            0,
-            200
-          );
-
-          const population = clamp(
-            nation.population +
-              (food > 75 ? 1.4 : -0.8) +
-              (mood === 'alliance' ? 0.4 : 0),
-            20,
-            180
-          );
-
-          const industry = clamp(
-            nation.industry + randomBetween(-1.5, 2.8) + (nation.science > 70 ? 1 : 0),
-            15,
-            150
-          );
-
-          const science = clamp(
-            nation.science + randomBetween(-0.5, 2.4) + (mood === 'alliance' ? 1 : 0),
-            10,
-            160
-          );
-
-          const army = clamp(
-            nation.army +
-              (mood === 'war' ? 4 : 1.2) +
-              (nation.treasury > 110 ? 2.4 : 0) -
-              (food < 45 ? 2 : 0),
-            8,
-            250
-          );
-
-          const morale = clamp(
-            nation.morale +
-              (mood === 'war' ? 1.8 : mood === 'peace' ? 2.2 : 1.2) +
-              randomBetween(-3, 3),
-            20,
-            100
-          );
-
-          const aggression = clamp(
-            nation.aggression +
-              (mood === 'war' ? 2.5 : mood === 'peace' ? -1.8 : 0.2) +
-              randomBetween(-2.2, 2.2),
-            10,
-            100
-          );
-
-          const influence = clamp(
-            nation.influence +
-              (nation.army > 90 ? 2 : 0) +
-              (nation.science > 70 ? 1.5 : 0) +
-              (mood === 'alliance' ? 1.5 : 0) +
-              randomBetween(-1.1, 2.1),
-            8,
-            130
-          );
-
-          return {
-            ...nation,
-            mood,
-            treasury,
-            food,
-            population,
-            industry,
-            science,
-            army,
-            morale,
-            aggression,
-            influence,
-            x: clamp(nation.x + randomBetween(-2.2, 2.2), 8, 92),
-            y: clamp(nation.y + randomBetween(-1.8, 1.8), 10, 90)
-          };
-        });
-
-        const resolved = next.map((nation) => {
-          const nearby = getNeighbors(nation, next);
-          if (!nearby.length) return nation;
-
-          const target = [...nearby].sort((a, b) => a.army - b.army)[0];
-          const attackRisk =
-            nation.aggression / 100 +
-            (nation.mood === 'war' ? 0.25 : 0) -
-            target.influence / 180;
-
-          const shouldAttack = Math.random() < clamp(attackRisk, 0.08, 0.85);
-
-          if (shouldAttack && nation.army > target.army) {
-            const casualties = Math.max(6, Math.round(target.army * 0.35));
-            const spare = Math.max(8, Math.round(nation.army * 0.1));
-
-            const updatedTarget = {
-              ...target,
-              army: clamp(target.army - casualties, 1, 250),
-              morale: clamp(target.morale - 10, 10, 100),
-              influence: clamp(target.influence - 7, 8, 140)
-            };
-
-            const updatedNation = {
-              ...nation,
-              army: clamp(nation.army - spare, 8, 250),
-              influence: clamp(nation.influence + 8, 8, 140),
-              treasury: clamp(nation.treasury + 3, 0, 220)
-            };
-
-            events.push(`${updatedNation.name} battles ${updatedTarget.name} and gains ground.`);
-
-            const index = next.findIndex((n) => n.id === updatedTarget.id);
-            if (index !== -1) {
-              next[index] = updatedTarget;
-            }
-
-            return updatedNation;
-          }
-
-          return nation;
-        });
-
-        setTurn((v) => v + 1);
-        setYear((y) => y + 1);
-
-        if (events.length) {
-          setLog((prev) => [...events, ...prev].slice(0, 12));
-        }
-
-        return resolved;
-      });
-    }, 1800);
-
-    return () => window.clearInterval(timer);
-  }, [autoPlay]);
-
-  const handleMood = (mood: Mood) => {
-    if (!selectedNation) return;
-
-    setNations((current) =>
-      current.map((nation) =>
-        nation.id === selectedNation.id
-          ? {
-              ...nation,
-              mood,
-              aggression:
-                mood === 'war'
-                  ? clamp(nation.aggression + 16, 10, 100)
-                  : mood === 'peace'
-                    ? clamp(nation.aggression - 16, 10, 100)
-                    : clamp(nation.aggression - 6, 10, 100),
-              influence: clamp(
-                nation.influence +
-                  (mood === 'alliance' ? 10 : mood === 'war' ? 6 : 2),
-                8,
-                150
-              )
-            }
-          : nation
-      )
-    );
-
-    addLog(`${selectedNation.name} shifts toward ${mood}.`);
-  };
-
-  const handleInvestment = () => {
-    if (!selectedNation) return;
-
-    setNations((current) =>
-      current.map((nation) =>
-        nation.id === selectedNation.id
-          ? {
-              ...nation,
-              treasury: clamp(nation.treasury + 10, 0, 220),
-              industry: clamp(nation.industry + 8, 10, 150),
-              science: clamp(nation.science + 7, 10, 160),
-              army: clamp(nation.army + 12, 8, 250),
-              food: clamp(nation.food + 10, 0, 200)
-            }
-          : nation
-      )
-    );
-
-    addLog(`${selectedNation.name} invests heavily in growth and mobilization.`);
-  };
-
-  const handleAttack = () => {
-    if (!selectedNation) return;
-
-    const nearby = nations.filter(
-      (other) => other.id !== selectedNation.id && distance(selectedNation, other) < 25
-    );
-
-    if (!nearby.length) {
-      addLog(`${selectedNation.name} has no nearby targets.`);
-      return;
-    }
-
-    const target = [...nearby].sort((a, b) => a.army - b.army)[0];
-
-    setNations((current) =>
-      current.map((nation) => {
-        if (nation.id === selectedNation.id) {
-          return {
-            ...nation,
-            army: clamp(nation.army - 8, 8, 250),
-            aggression: clamp(nation.aggression + 12, 10, 100),
-            influence: clamp(nation.influence + 10, 8, 150)
-          };
-        }
-
-        if (nation.id === target.id) {
-          return {
-            ...nation,
-            army: clamp(nation.army - 14, 1, 250),
-            morale: clamp(nation.morale - 12, 10, 100)
-          };
-        }
-
-        return nation;
-      })
-    );
-
-    addLog(`${selectedNation.name} launches a strike against ${target.name}.`);
-  };
-
-  const totalTroops = nations.reduce((sum, nation) => sum + nation.army, 0);
-  const totalPopulation = nations.reduce((sum, nation) => sum + nation.population, 0);
-  const richest = [...nations].sort((a, b) => b.treasury - a.treasury)[0];
-  const strongest = [...nations].sort((a, b) => b.army - a.army)[0];
-  const leader = [...nations].sort((a, b) => b.influence - a.influence)[0];
-
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Global simulation</p>
-          <h1>Worlds in Conflict</h1>
-        </div>
-
-        <div className="toolbar">
-          <button onClick={() => setAutoPlay((v) => !v)}>
-            {autoPlay ? 'Pause' : 'Resume'}
-          </button>
-          <button className="accent" onClick={() => setNations(createWorld())}>
-            New world
-          </button>
-        </div>
-      </header>
-
-      <main className="layout">
-        <section className="world-panel">
-          <div className="stats-grid">
-            <div className="stat">
-              <span>Year</span>
-              <strong>{year}</strong>
-            </div>
-            <div className="stat">
-              <span>Turn</span>
-              <strong>{turn}</strong>
-            </div>
-            <div className="stat">
-              <span>Army</span>
-              <strong>{Math.round(totalTroops)}</strong>
-            </div>
-            <div className="stat">
-              <span>Population</span>
-              <strong>{Math.round(totalPopulation)}</strong>
-            </div>
-          </div>
-
-          <div className="map">
-            <svg className="map-lines" viewBox="0 0 100 100" preserveAspectRatio="none">
-              {nations.flatMap((nation) =>
-                getNeighbors(nation, nations).map((neighbor) => ({
-                  id: `${nation.id}-${neighbor.id}`,
-                  x1: nation.x,
-                  y1: nation.y,
-                  x2: neighbor.x,
-                  y2: neighbor.y
-                }))
-              ).map((line) => (
-                <line
-                  key={line.id}
-                  x1={line.x1}
-                  y1={line.y1}
-                  x2={line.x2}
-                  y2={line.y2}
-                  stroke="rgba(255,255,255,0.18)"
-                  strokeWidth="0.8"
-                />
-              ))}
-            </svg>
-
-            {nations.map((nation) => (
-              <button
-                key={nation.id}
-                className={`nation ${selectedNation?.id === nation.id ? 'selected' : ''}`}
-                style={{
-                  left: `${nation.x}%`,
-                  top: `${nation.y}%`,
-                  background: nation.color
-                }}
-                onClick={() => setSelectedId(nation.id)}
-              >
-                <span>{nation.name}</span>
-                <small>{Math.round(nation.army)}</small>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <aside className="sidebar">
-          <div className="card">
-            <h2>{selectedNation?.name ?? 'N/A'}</h2>
-
-            <div className="metrics">
-              <div>
-                <span>Population</span>
-                <strong>{Math.round(selectedNation?.population ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Treasury</span>
-                <strong>{Math.round(selectedNation?.treasury ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Food</span>
-                <strong>{Math.round(selectedNation?.food ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Industry</span>
-                <strong>{Math.round(selectedNation?.industry ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Science</span>
-                <strong>{Math.round(selectedNation?.science ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Army</span>
-                <strong>{Math.round(selectedNation?.army ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Morale</span>
-                <strong>{Math.round(selectedNation?.morale ?? 0)}</strong>
-              </div>
-              <div>
-                <span>Influence</span>
-                <strong>{Math.round(selectedNation?.influence ?? 0)}</strong>
-              </div>
-              <div className="wide">
-                <span>Mood</span>
-                <strong>{selectedNation?.mood ?? 'peace'}</strong>
-              </div>
-            </div>
-
-            <div className="actions">
-              <button onClick={() => handleMood('war')}>Declare war</button>
-              <button onClick={() => handleMood('peace')}>Seek peace</button>
-              <button onClick={() => handleMood('alliance')}>Alliance</button>
-              <button onClick={handleInvestment}>Invest</button>
-              <button className="accent full" onClick={handleAttack}>Launch attack</button>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3>World log</h3>
-            <ul className="log">
-              {log.map((entry, index) => (
-                <li key={`${entry}-${index}`}>{entry}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="card summary">
-            <h3>Global overview</h3>
-            <div className="summary-list">
-              <p>Richest: {richest?.name ?? 'N/A'}</p>
-              <p>Strongest: {strongest?.name ?? 'N/A'}</p>
-              <p>Leader: {leader?.name ?? 'N/A'}</p>
-            </div>
-          </div>
-        </aside>
-      </main>
-    </div>
-  );
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #edf6ff;
+  background: #09111d;
+  color-scheme: dark;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
-export default App;
+* { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, rgba(96, 165, 250, .18), transparent 35%), #09111d;
+}
+
+body { min-height: 100vh; }
+
+button {
+  border: 0;
+  border-radius: 12px;
+  padding: .76rem 1rem;
+  background: rgba(255, 255, 255, .08);
+  color: #fff;
+  cursor: pointer;
+  transition: transform .15s ease, opacity .15s ease;
+}
+
+button:hover { transform: translateY(-1px); opacity: .96; }
+button.accent { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+
+.app-shell { max-width: 1480px; margin: 0 auto; padding: 1.25rem; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+.eyebrow { margin: 0; font-size: .72rem; letter-spacing: .15em; text-transform: uppercase; color: #7dd3fc; }
+h1 { margin: .3rem 0 0; font-size: clamp(2rem, 3vw, 3rem); }
+.toolbar { display: flex; gap: .75rem; flex-wrap: wrap; }
+.layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(320px, 1fr); gap: 1rem; }
+.world-panel, .card { background: rgba(15, 23, 42, .82); border: 1px solid rgba(148, 163, 184, .2); border-radius: 22px; box-shadow: 0 18px 45px rgba(15, 23, 42, .38); }
+.world-panel { padding: 1rem; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin-bottom: 1rem; }
+.stat { background: rgba(255, 255, 255, .04); border-radius: 14px; padding: .85rem .9rem; display: flex; flex-direction: column; gap: .2rem; }
+.stat span, .metrics span { color: #a5b4cf; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; }
+.stat strong { font-size: 1.28rem; }
+.map { position: relative; height: 720px; overflow: hidden; border-radius: 22px; background: linear-gradient(rgba(14, 116, 144, .12), rgba(2, 6, 23, .2)), linear-gradient(135deg, #071d2b, #10263a 45%, #0d1a2b); border: 1px solid rgba(148, 163, 184, .2); }
+.map-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.nation { position: absolute; transform: translate(-50%, -50%); width: 86px; min-height: 72px; border-radius: 50%; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #fff; font-weight: 700; border: 3px solid rgba(255, 255, 255, .35); box-shadow: 0 10px 25px rgba(15, 23, 42, .45); transition: transform .15s ease, box-shadow .2s ease; }
+.nation:hover { transform: translate(-50%, -50%) scale(1.05); }
+.nation.selected { box-shadow: 0 0 0 4px rgba(255, 255, 255, .16), 0 14px 35px rgba(59, 130, 246, .5); border-color: rgba(255, 255, 255, .8); }
+.nation span { font-size: .62rem; text-shadow: 0 2px 8px rgba(0, 0, 0, .35); }
+.nation small { font-size: .88rem; }
+.sidebar { display: flex; flex-direction: column; gap: 1rem; }
+.card { padding: 1rem; }
+.card h2, .card h3 { margin-top: 0; }
+.metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; margin: 1rem 0; }
+.metrics > div { background: rgba(255, 255, 255, .04); border-radius: 14px; padding: .72rem .8rem; }
+.metrics > div.wide { grid-column: 1 / -1; }
+.metrics span { display: block; }
+.metrics strong { font-size: 1.08rem; }
+.actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.full { grid-column: 1 / -1; }
+.log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; }
+.log li, .summary-list p { background: rgba(255, 255, 255, .04); border-radius: 12px; padding: .7rem .8rem; color: #dbeafe; font-size: .94rem; }
+.summary-list { display: flex; flex-direction: column; gap: .5rem; }
+.summary-list p { margin: 0; }
+
+@media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+@media (max-width: 640px) {
+  .topbar { flex-direction: column; align-items: flex-start; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .actions { grid-template-columns: 1fr; }
+  .map { height: 560px; }
+}
