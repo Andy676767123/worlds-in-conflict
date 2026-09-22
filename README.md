@@ -1,2 +1,5 @@
-# worlds-in-conflict
-A browser-based strategy world simulation inspired by grand geopolitical conflict games.
+node_modules
+dist
+.vite
+.DS_Store
+npm-debug.log*
